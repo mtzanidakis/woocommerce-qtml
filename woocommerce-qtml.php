@@ -2,7 +2,7 @@
 /*
   Plugin Name: WooCommerce-qTML
   Plugin URI: http://www.somewherewarm.net
-  Description: Add (m)qTranslate support to WooCommerce.
+  Description: Add (m)qTranslate(-xp) support to WooCommerce.
   Author: SomewhereWarm
   Author URI: http://www.somewherewarm.net
   Version: 2.0.10
@@ -46,7 +46,10 @@ if ( is_woocommerce_active() ) {
 
 		public function __construct() {
 
-			if ( in_array( 'qtranslate/qtranslate.php', apply_filters( 'active_plugins', get_option( 'active_plugins' ) ) ) || in_array( 'mqtranslate/mqtranslate.php', apply_filters( 'active_plugins', get_option( 'active_plugins' ) ) ) ) {
+			if ( in_array( 'qtranslate/qtranslate.php', apply_filters( 'active_plugins', get_option( 'active_plugins' ) ) )
+				|| in_array( 'mqtranslate/mqtranslate.php', apply_filters( 'active_plugins', get_option( 'active_plugins' ) ) )
+				|| in_array( 'qtranslate-xp/ppqtranslate.php', apply_filters( 'active_plugins', get_option( 'active_plugins' ) ) ) ) 
+			{
 
 				add_action( 'init', array( $this, 'wc_qtml_init' ), 0 );
 
@@ -69,9 +72,17 @@ if ( is_woocommerce_active() ) {
 			echo '<br/>Default Lang: ';
 			print_r( $this->default_language );
 			echo '<br/>qTrans Lang: ';
-			print_r( qtrans_getLanguage() );
+			if( function_exists( 'ppqtrans_getLanguage' ) ) {
+				print_r( ppqtrans_getLanguage() );
+			} else {
+				print_r( qtrans_getLanguage() );
+			}
 			echo '<br/>Session Lang: ';
-			print_r( $_SESSION[ 'qtrans_language' ] );
+			if( isset( $_SESSION[ 'ppqtrans_language' ] ) ) {
+				print_r( $_SESSION[ 'ppqtrans_language' ] );
+			} else {
+				print_r( $_SESSION[ 'qtrans_language' ] );
+			}
 		}
 
 
@@ -87,20 +98,41 @@ if ( is_woocommerce_active() ) {
 
 			if ( ! is_admin() || $this->is_ajax_woocommerce() ) {
 
-				if ( in_array( qtrans_getLanguage(), $this->enabled_languages ) ) {
+				if( function_exists( 'ppqtrans_getLanguage' ) ) {
 
-					$this->current_language = qtrans_getLanguage();
+					if ( in_array( ppqtrans_getLanguage(), $this->enabled_languages ) ) {
 
-					$_SESSION[ 'qtrans_language' ] = $this->current_language;
+						$this->current_language = ppqtrans_getLanguage();
 
-				} elseif ( ! empty( $_SESSION[ 'qtrans_language' ] ) ) {
+						$_SESSION[ 'ppqtrans_language' ] = $this->current_language;
 
-					$this->current_language = $_SESSION[ 'qtrans_language' ];
-					$q_config[ 'language' ] = $this->current_language;
+					} elseif ( ! empty( $_SESSION[ 'ppqtrans_language' ] ) ) {
+
+						$this->current_language = $_SESSION[ 'ppqtrans_language' ];
+						$q_config[ 'language' ] = $this->current_language;
+
+					} else {
+
+						$this->current_language = $this->default_language;
+					}
 
 				} else {
 
-					$this->current_language = $this->default_language;
+					if ( in_array( qtrans_getLanguage(), $this->enabled_languages ) ) {
+
+						$this->current_language = qtrans_getLanguage();
+
+						$_SESSION[ 'qtrans_language' ] = $this->current_language;
+
+					} elseif ( ! empty( $_SESSION[ 'qtrans_language' ] ) ) {
+
+						$this->current_language = $_SESSION[ 'qtrans_language' ];
+						$q_config[ 'language' ] = $this->current_language;
+
+					} else {
+
+						$this->current_language = $this->default_language;
+					}
 				}
 
 			} else {
@@ -128,7 +160,12 @@ if ( is_woocommerce_active() ) {
 				// remove_action( 'admin_menu', 'qtrans_adminMenu' );
 
 				add_filter( 'locale', array( $this, 'wc_qtml_admin_locale' ), 1000 );
-				add_filter( 'qtranslate_language', array( $this,'wc_qtml_lang' ) );
+
+				if( function_exists( 'ppqtranslate_language' ) ) {
+					add_filter( 'ppqtranslate_language', array( $this,'wc_qtml_lang' ) );
+				} else {
+					add_filter( 'qtranslate_language', array( $this,'wc_qtml_lang' ) );
+				}
 			}
 		}
 
@@ -231,7 +268,11 @@ if ( is_woocommerce_active() ) {
 			$filters = apply_filters( 'wc_qtml_convertURL_filters', $filters );
 
 			foreach ( $filters as $id => $priority ) {
-				add_filter( $id, 'qtrans_convertURL', $priority );
+				if( function_exists( 'ppqtrans_convertURL' ) ) {
+					add_filter( $id, 'ppqtrans_convertURL', $priority );
+				} else {
+					add_filter( $id, 'qtrans_convertURL', $priority );
+				}
 			}
 
 			add_filter( 'woocommerce_get_checkout_payment_url', array( $this, 'wc_qtml_checkout_payment_url_filter' ) );
@@ -426,9 +467,17 @@ if ( is_woocommerce_active() ) {
 
 			foreach ( $tax_totals as $key => $tax_total ) {
 				if ( isset( $tax_total->label ) ) {
-					$tax_totals[ $key ]->label = qtrans_useCurrentLanguageIfNotFoundUseDefaultLanguage(
-						$tax_total->label
-					);
+					if( function_exists('ppqtrans_useCurrentLanguageIfNotFoundUseDefaultLanguage' ) ) {
+						$tax_totals[ $key ]->label =
+							ppqtrans_useCurrentLanguageIfNotFoundUseDefaultLanguage(
+								$tax_total->label
+							);
+					} else {
+						$tax_totals[ $key ]->label =
+							qtrans_useCurrentLanguageIfNotFoundUseDefaultLanguage(
+								$tax_total->label
+							);
+					}
 				}
 			}
 
@@ -521,7 +570,11 @@ if ( is_woocommerce_active() ) {
 		function wc_qtml_split( $text ) {
 
 			if ( isset( $GLOBALS[ 'order_lang' ] ) && in_array( $GLOBALS[ 'order_lang' ], $this->enabled_languages ) )
-				$text = qtrans_use( $GLOBALS[ 'order_lang' ], $text );
+				if( function_exists( 'ppqtrans_use' ) ) {
+					$text = ppqtrans_use( $GLOBALS[ 'order_lang' ], $text );
+				} else {
+					$text = qtrans_use( $GLOBALS[ 'order_lang' ], $text );
+				}
 			else
 				$text = __( $text );
 
@@ -557,7 +610,11 @@ if ( is_woocommerce_active() ) {
 					$location = add_query_arg( $arg, $location );
 				}
 				elseif ( $this->mode == 2 ) {
-					$location = qtrans_convertURL( $location, $_POST['comment_post_lang'], true );
+					if( function_exists( 'ppqtrans_convertURL' ) ) {
+						$location = ppqtrans_convertURL( $location, $_POST['comment_post_lang'], true );
+					} else {
+						$location = qtrans_convertURL( $location, $_POST['comment_post_lang'], true );
+					}
 				}
 			}
 
@@ -603,13 +660,21 @@ if ( is_woocommerce_active() ) {
 
 			// Backwards compat < 2.1 - get shipping title stored in meta
 			if ( $order->shipping_method_title ) {
-				$labels[] = qtrans_use( $order_lang, $order->shipping_method_title );
+				if( function_exists( 'ppqtrans_use' ) ) {
+					$labels[] = ppqtrans_use( $order_lang, $order->shipping_method_title );
+				} else {
+					$labels[] = qtrans_use( $order_lang, $order->shipping_method_title );
+				}
 			} else {
 				// 2.1+ get line items for shipping
 				$shipping_methods = $order->get_shipping_methods();
 
 				foreach ( $shipping_methods as $shipping ) {
-					$labels[] = qtrans_use( $order_lang, $shipping[ 'name' ] );
+					if( function_exists( 'ppqtrans_use' ) ) {
+						$labels[] = ppqtrans_use( $order_lang, $shipping[ 'name' ] );
+					} else {
+						$labels[] = qtrans_use( $order_lang, $shipping[ 'name' ] );
+					}
 				}
 			}
 
@@ -617,9 +682,15 @@ if ( is_woocommerce_active() ) {
 		}
 
 		function wc_qtml_attribute_label_filter( $label ) {
-			if ( isset( $GLOBALS['order_lang'] ) && in_array( $GLOBALS['order_lang'], $this->enabled_languages ) )
-				$label = qtrans_use( $GLOBALS['order_lang'], $label );
-			else $label = __( $label );
+			if ( isset( $GLOBALS['order_lang'] ) && in_array( $GLOBALS['order_lang'], $this->enabled_languages ) ) {
+				if( function_exists( 'ppqtrans_use' ) ) {
+					$label = ppqtrans_use( $GLOBALS['order_lang'], $label );
+				} else {
+					$label = qtrans_use( $GLOBALS['order_lang'], $label );
+				}
+			} else {
+				$label = __( $label );
+			}
 			return $label;
 		}
 
@@ -640,22 +711,29 @@ if ( is_woocommerce_active() ) {
 
 			foreach ( $wp_taxonomies as $tax_name => $tax ) {
 				if ( $tax->labels )
-					$tax->labels = qtrans_use( $this->current_language, $tax->labels );
+					if( function_exists( 'ppqtrans_use' ) ) {
+						$tax->labels = ppqtrans_use( $this->current_language, $tax->labels );
+					} else {
+						$tax->labels = qtrans_use( $this->current_language, $tax->labels );
+					}
 			}
 		}
 
 		function wc_qtml_term_filter( $term ) {
 			if ( $term ) {
-				if ( isset( $GLOBALS['order_lang'] ) && in_array( $GLOBALS['order_lang'], $this->enabled_languages ) )
-					$term->name = qtrans_use( $GLOBALS['order_lang'], $term->name );
-				elseif ( is_admin() && ! $this->is_ajax_woocommerce() && function_exists( 'get_current_screen' ) ) {
+				if ( isset( $GLOBALS['order_lang'] ) && in_array( $GLOBALS['order_lang'], $this->enabled_languages ) ) {
+					if( function_exists( 'ppqtrans_use' ) ) {
+						$term->name = ppqtrans_use( $GLOBALS['order_lang'], $term->name );
+					} else {
+						$term->name = qtrans_use( $GLOBALS['order_lang'], $term->name );
+					}
+				} elseif ( is_admin() && ! $this->is_ajax_woocommerce() && function_exists( 'get_current_screen' ) ) {
 
 					// product categories and terms back end fix
 				    $screen = get_current_screen();
 					if ( ! empty( $screen ) && ! strstr( $screen->id, 'edit-pa_' ) && empty( $_GET['taxonomy'] ) )
 						$term->name = $this->wc_qtml_split( $term->name );
-				}
-				else {
+				} else {
 					$term->name = $this->wc_qtml_split( $term->name );
 				}
 			}
@@ -664,7 +742,11 @@ if ( is_woocommerce_active() ) {
 
 
 		function wc_qtml_attribute_filter( $list, $attribute, $values ) {
-			return wpautop( wptexturize( implode( ', ', qtrans_use( $this->current_language, $values ) ) ) );
+			if( function_exists( 'ppqtrans_use' ) ) {
+				return wpautop( wptexturize( implode( ', ', ppqtrans_use( $this->current_language, $values ) ) ) );
+			} else {
+				return wpautop( wptexturize( implode( ', ', qtrans_use( $this->current_language, $values ) ) ) );
+			}
 		}
 
 		// fixes localization of date_i18n function
@@ -708,18 +790,30 @@ if ( is_woocommerce_active() ) {
 		}
 
 		function woocommerce_layered_nav_link_filter( $link ) {
-			return qtrans_convertURL( $link, $this->current_language );
+			if( function_exists( 'ppqtrans_convertURL' ) ) {
+				return ppqtrans_convertURL( $link, $this->current_language );
+			} else {
+				return qtrans_convertURL( $link, $this->current_language );
+			}
 		}
 
 		function wc_qtml_checkout_payment_url_filter( $url ) {
 			if ( !is_admin() ) {
-				$url = qtrans_convertURL( $url, $this->current_language );
+				if( function_exists( 'ppqtrans_convertURL' ) ) {
+					$url = ppqtrans_convertURL( $url, $this->current_language );
+				} else {
+					$url = qtrans_convertURL( $url, $this->current_language );
+				}
 			} else {
 				if ( preg_match( "#(&|\?)order_id=([^&\#]+)#i",$url,$match ) ) {
 					$order_id = $match[2];
 					$custom_values = get_post_custom_values( 'language', $order_id );
 					$order_lang = $custom_values[0];
-					$url = qtrans_convertURL( $url, $order_lang, true );
+					if( function_exists( 'ppqtrans_convertURL' ) ) {
+						$url = ppqtrans_convertURL( $url, $order_lang, true );
+					} else {
+						$url = qtrans_convertURL( $url, $order_lang, true );
+					}
 				}
 			}
 			return $url;
